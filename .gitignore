@@ -300,3 +300,4 @@ __pycache__/
 
 #VMFS
 *.vmf
+VMFParser/Program.cs

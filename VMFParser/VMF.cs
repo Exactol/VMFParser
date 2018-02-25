@@ -14,8 +14,8 @@ namespace VMFParser
     {
         private StreamReader sr;
         private string filePath;
-        //public List<GenericVMFClass> Classes { get; private set; }
-        public List<GenericVMFClass> Classes;
+
+        public List<GenericVMFClass> Classes { get; private set; }
 
 
         public VMF(string _filePath, bool ignoreHiddenClass = false)
@@ -264,6 +264,9 @@ namespace VMFParser
 
             return sb.ToString();
         }
+
+        //Syntatic sugar for getting vmf classes by type
+        public GenericVMFClass[] this[string searchType] => FindVmfClass(searchType).ToArray();
     }
 
     public abstract class VMFClass
