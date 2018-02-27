@@ -9,20 +9,10 @@ namespace VMFParser
         {
             //TODO change to debug.writeline for performance gains
             
-            VMF vmf = new VMF(@"C:\Program Files (x86)\Steam\steamapps\common\SourceSDK_Content\tf\mapsrc\Koth\koth_tropic_a1.vmf");
+            VMF vmf = new VMF(@"C:\Program Files (x86)\Steam\steamapps\common\SourceSDK_Content\tf\mapsrc\Koth\koth_tropic_a1.vmf", true);
+            //Console.WriteLine(vmf);
 
-            var test = vmf["solid"];
-            foreach (var vmfClass in test)
-            {
-                Console.WriteLine(vmfClass);
-            }
-            //List<Solid> solids = vmf.GetSolids();
-
-            //foreach (var solid in solids)
-            //{
-            //    Console.WriteLine(solid);
-            //}
-
+            Console.WriteLine(vmf["world"]);
 
             Console.Read();
         }

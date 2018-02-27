@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration.Assemblies;
 using System.Numerics;
 using System.Text;
 
@@ -51,9 +52,9 @@ namespace VMFParser
 
     public struct Plane
     {
-        Vector3 V1;
-        Vector3 V2;
-        Vector3 V3;
+        public Vector3 V1;
+        public Vector3 V2;
+        public Vector3 V3;
 
         public Plane(Vector3 v1, Vector3 v2, Vector3 v3)
         {
@@ -65,6 +66,19 @@ namespace VMFParser
         public override string ToString()
         {
             return $"({V1.X} {V1.Y} {V1.Z}) ({V2.X} {V2.Y} {V2.Z}) ({V3.X} {V3.Y} {V3.Z})";
+        }
+
+        //Calculates the normal of the plane
+        public Vector3 Normal()
+        {
+            Vector3 dir = Vector3.Cross((V2 - V1), (V3 - V2));
+            return (dir / dir.Length());
+        }
+
+        //Returns distance from plane to origin
+        public Vector3 Distance()
+        {
+            return V1 * Normal();
         }
     }
 

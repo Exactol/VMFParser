@@ -10,7 +10,7 @@ using System.Timers;
 
 namespace VMFParser
 {
-    class VMF
+    public class VMF
     {
         private StreamReader sr;
         private string filePath;
@@ -18,7 +18,7 @@ namespace VMFParser
         public List<GenericVMFClass> Classes { get; private set; }
 
 
-        public VMF(string _filePath, bool ignoreHiddenClass = false)
+        public VMF(string _filePath, bool collapseHiddenClasses = false)
         {
             if (!File.Exists(_filePath))
             {
@@ -29,7 +29,7 @@ namespace VMFParser
             sr = new StreamReader(_filePath);
             filePath = _filePath;
 
-            ReadVMF(ignoreHiddenClass);
+            ReadVMF(collapseHiddenClasses);
 
         }
 
@@ -57,19 +57,23 @@ namespace VMFParser
                                  select vClass).First();
                 
                 //Get hidden class from world class
-                var hiddenClass = (from hClass in worldClass.ChildClasses
+                var hiddenClasses = from hClass in worldClass.ChildClasses
                     where hClass.ClassName == "hidden"
-                    select hClass).First();
-                
-                //Remove hidden class and properties
-                Classes.Remove(worldClass);
-                int worldPos = Classes.IndexOf(worldClass);
+                    select hClass;
 
-                worldClass.ChildClasses.Remove(hiddenClass);
+                //Remove hidden classes
+                int worldPos = Classes.IndexOf(worldClass);
+                Classes.Remove(worldClass);
+
+                var hiddenClassesArray = hiddenClasses as GenericVMFClass[] ?? hiddenClasses.ToArray();
+                worldClass.ChildClasses.Except(hiddenClassesArray);
+
+                //Collapse hidden classes
+                foreach (var hiddenClass in hiddenClassesArray)
+                    hiddenClass.Collapse(ref worldClass);
 
                 //Re add world class Back
                 Classes.Insert(worldPos, worldClass);
-                //Classes.Add(worldClass);
             }
                 
 
@@ -148,7 +152,7 @@ namespace VMFParser
             {
                 string[] value = keyValue[1].Replace("[", "").Replace("]", "").Split(' ');
 
-                if (value.Length == 4)
+                if (value.Length == 5)
                 {
                     //Return as UV
                     UV outUV = new UV(
@@ -222,9 +226,7 @@ namespace VMFParser
 
             //Search child classes
             foreach (var vmfClass in Classes)
-            {
                 classes.AddRange(vmfClass.FindClass(className));
-            }
 
             return classes;
         }
@@ -269,10 +271,10 @@ namespace VMFParser
         public GenericVMFClass[] this[string searchType] => FindVmfClass(searchType).ToArray();
     }
 
-    public abstract class VMFClass
-    {
-        public abstract void Convert(GenericVMFClass vmfClass);
-    }
+    //public abstract class VMFClass
+    //{
+    //    public abstract void Convert(GenericVMFClass vmfClass);
+    //}
     public class GenericVMFClass
     {
         public string ClassName { get; }
@@ -303,7 +305,6 @@ namespace VMFParser
                              select potentialMatch).SelectMany(x => x));
 
             return matches;
-
         }
 
         public bool HasClass(string searchClass, bool searchChildren = true)
@@ -327,6 +328,15 @@ namespace VMFParser
                 return true;
 
             return false;
+        }
+
+        public List<KeyValuePair<string, object>> GetProperty(string searchKey)
+        {
+            List<KeyValuePair<string, object>> matches = (from property in Properties
+                                                         where property.Key == searchKey
+                                                         select property).ToList();
+
+            return matches;
         }
 
         public bool HasProperty(string searchKey = "", object searchValue = null, bool firstClass = true)
@@ -382,8 +392,7 @@ namespace VMFParser
         //Print out in a tree type structure
         private string PrintPretty(string indent = "")
         {
-            StringBuilder sb = new StringBuilder(indent + ClassName);
-            sb.AppendLine(indent + ClassName);
+            StringBuilder sb = new StringBuilder(indent + ClassName  + "\n");
             sb.AppendLine(indent + "{");
 
             string oldIndent = indent;
@@ -415,13 +424,24 @@ namespace VMFParser
                 sb.AppendLine(childClass.PrintPretty(indent));
             }
 
-            sb.AppendLine(oldIndent + "}");
+            sb.Append(oldIndent + "}");
             return sb.ToString();
              
         }
+
+        public void Collapse(ref GenericVMFClass parentClass)
+        {
+            //Remove from vmf's classes
+            parentClass.ChildClasses.Remove(this);
+
+            //Add child classes
+            parentClass.ChildClasses.AddRange(ChildClasses);
+        }
+
+        public GenericVMFClass[] this[string searchType] => FindClass(searchType).ToArray();
     }
 
-    public class Solid : VMFClass
+    public class Solid
     {
         public int ID { get; }
         public List<Side> Sides { get; }
@@ -449,44 +469,57 @@ namespace VMFParser
 
         public override string ToString()
         {
-            StringBuilder sb = new StringBuilder("ID " + ID);
+            StringBuilder sb = new StringBuilder("ID " + ID + "\n");
             foreach (var side in Sides)
                 sb.AppendLine(side.ToString());
 
             return sb.ToString();
         }
-
-        public override void Convert(GenericVMFClass vmfClass)
-        {
-            throw new NotImplementedException();
-        }
     }
 
-    public class Side : VMFClass
+    public class Side
     {
-        public int? ID;
+        public int ID;
         public Plane SidePlane;
         public string Material;
+        public UV UAxis;
+        public UV VAxis;
+        public float Rotation;
+        public float LightmapScale;
+        public int SmoothingGroup;
+        //TODO support for dispInfo
 
         public Side(GenericVMFClass genericVmfClass)
         {
-            ID = genericVmfClass.Properties[0].Value as int?;
-            SidePlane = (Plane)genericVmfClass.Properties[1].Value;
-            Material = (string)genericVmfClass.Properties[2].Value;
+            ID = Convert.ToInt32(genericVmfClass.Properties[0].Value);
+            SidePlane = (Plane) genericVmfClass.Properties[1].Value;
+            Material = (string) genericVmfClass.Properties[2].Value;
+            UAxis = (UV) genericVmfClass.Properties[3].Value;
+            VAxis = (UV) genericVmfClass.Properties[4].Value;
+            Rotation = Convert.ToSingle(genericVmfClass.Properties[5].Value);
+            LightmapScale = Convert.ToSingle(genericVmfClass.Properties[6].Value);
+            SmoothingGroup = Convert.ToInt32(genericVmfClass.Properties[7].Value);
         }
 
         public override string ToString()
         {
-            return $"ID: {ID} \nPlane: {SidePlane} \nMaterial: {Material}";
-        }
+            StringBuilder sb = new StringBuilder();
 
-        public override void Convert(GenericVMFClass vmfClass)
-        {
-            throw new NotImplementedException();
+            sb.AppendLine("side\n{");
+            sb.AppendLine($"\"id\" \"{ID}\"");
+            sb.AppendLine($"\"plane\" \"{SidePlane}\"");
+            sb.AppendLine($"\"uaxis\" \"{UAxis}\"");
+            sb.AppendLine($"\"vaxis\" \"{VAxis}\"");
+            sb.AppendLine($"\"rotation\" \"{Rotation}\"");
+            sb.AppendLine($"\"lightmapscale\" \"{LightmapScale}\"");
+            sb.AppendLine($"\"smoothing_groups\" \"{SmoothingGroup}\"");
+            sb.AppendLine("}");
+
+            return sb.ToString();
         }
     }
 
-    public class EditorInfo : VMFClass
+    public class EditorInfo
     {
         public Vector3 Color { get; }
         public int VisGroupID { get; }
@@ -508,11 +541,6 @@ namespace VMFParser
         public EditorInfo(GenericVMFClass genericVmfClass)
         {
             
-        }
-
-        public override void Convert(GenericVMFClass vmfClass)
-        {
-            throw new NotImplementedException();
         }
     }
 }
