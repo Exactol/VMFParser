@@ -55,12 +55,14 @@ namespace VMFParser
         public Vector3 V1;
         public Vector3 V2;
         public Vector3 V3;
+        public Vector3 Normal;
 
-        public Plane(Vector3 v1, Vector3 v2, Vector3 v3)
+        public Plane(Vector3 v1, Vector3 v2, Vector3 v3) : this()
         {
             V1 = v1;
             V2 = v2;
             V3 = v3;
+            Normal = CalcNormal();
         }
 
         public override string ToString()
@@ -69,16 +71,16 @@ namespace VMFParser
         }
 
         //Calculates the normal of the plane
-        public Vector3 Normal()
+        private Vector3 CalcNormal()
         {
             Vector3 dir = Vector3.Cross((V2 - V1), (V3 - V2));
             return (dir / dir.Length());
         }
 
-        //Returns distance from plane to origin
-        public Vector3 Distance()
+        //Returns distance from closest point on plane to origin
+        public float Distance()
         {
-            return V1 * Normal();
+            return Math.Abs(Vector3.Dot(V1, Normal));
         }
     }
 
